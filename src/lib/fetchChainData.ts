@@ -78,9 +78,14 @@ export async function fetchAptosBlock(): Promise<{ blockNumber: number; tps: num
     })
     clearTimeout(timer)
     const data = await res.json()
+    const ledgerVersion = parseInt(data.ledger_version ?? '0')
+    const ledgerTimestampUs = parseInt(data.ledger_timestamp ?? '0')
+    const tps = ledgerTimestampUs > 0
+      ? Math.round(ledgerVersion / (ledgerTimestampUs / 1_000_000))
+      : 0
     return {
       blockNumber: parseInt(data.block_height ?? '0'),
-      tps: Math.round(parseInt(data.ledger_version ?? '0') / 3),
+      tps,
       latency: Date.now() - start,
     }
   } catch {
