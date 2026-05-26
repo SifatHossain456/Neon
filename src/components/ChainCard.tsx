@@ -82,7 +82,7 @@ export function ChainCard({
             </span>
           )}
           {explorer && (
-            <a href={explorer} target="_blank" rel="noopener noreferrer" className="text-white/20 hover:text-white/60 transition-colors">
+            <a href={explorer} target="_blank" rel="noopener noreferrer" aria-label={`${name} explorer`} className="text-white/20 hover:text-white/60 transition-colors">
               <ExternalLink size={12} />
             </a>
           )}
