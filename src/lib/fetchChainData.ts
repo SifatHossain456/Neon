@@ -12,6 +12,7 @@ export async function fetchMonadBlock(): Promise<{ blockNumber: number; latency:
       signal: controller.signal,
     })
     clearTimeout(timer)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     return {
       blockNumber: parseInt(data.result, 16),
@@ -34,6 +35,7 @@ export async function fetchSuiBlock(): Promise<{ blockNumber: number; tps: numbe
       signal: controller.signal,
     })
     clearTimeout(timer)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     const latency = Date.now() - start
 
@@ -52,9 +54,11 @@ export async function fetchSuiBlock(): Promise<{ blockNumber: number; tps: numbe
         signal: controller2.signal,
       })
       clearTimeout(timer2)
-      const tpsData = await tpsRes.json()
-      if (tpsData.result?.transactions) {
-        tps = Math.round(tpsData.result.transactions.length / 3)
+      if (tpsRes.ok) {
+        const tpsData = await tpsRes.json()
+        if (tpsData.result?.transactions) {
+          tps = Math.round(tpsData.result.transactions.length / 3)
+        }
       }
     } catch { /* ignore */ }
 
@@ -77,6 +81,7 @@ export async function fetchAptosBlock(): Promise<{ blockNumber: number; tps: num
       signal: controller.signal,
     })
     clearTimeout(timer)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     const ledgerVersion = parseInt(data.ledger_version ?? '0')
     const ledgerTimestampUs = parseInt(data.ledger_timestamp ?? '0')
@@ -120,6 +125,7 @@ export async function fetchSolanaBlock(): Promise<{ blockNumber: number; tps: nu
     ])
     clearTimeout(timer1)
     clearTimeout(timer2)
+    if (!slotRes.ok || !perfRes.ok) throw new Error('HTTP error')
     const slotData = await slotRes.json()
     const perfData = await perfRes.json()
     const sample = perfData.result?.[0]
@@ -143,6 +149,7 @@ export async function fetchPrices(): Promise<Record<string, { usd: number; usd_2
       { signal: controller.signal }
     )
     clearTimeout(timer)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return await res.json()
   } catch {
     return {}
