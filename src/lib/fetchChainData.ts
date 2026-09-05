@@ -11,7 +11,7 @@ function withTimeout(ms: number): { signal: AbortSignal; cancel: () => void } {
 }
 
 /** Minimal JSON-RPC 2.0 POST. Returns `result` or `null` on any failure. */
-async function rpcPost(url: string, method: string, params: unknown[] = []): Promise<unknown | null> {
+export async function rpcPost(url: string, method: string, params: unknown[] = []): Promise<unknown | null> {
   const { signal, cancel } = withTimeout(REQUEST_TIMEOUT_MS)
   try {
     const res = await fetch(url, {
@@ -32,7 +32,7 @@ async function rpcPost(url: string, method: string, params: unknown[] = []): Pro
 }
 
 /** Plain GET returning parsed JSON, or `null` on any failure. */
-async function getJson<T>(url: string): Promise<T | null> {
+export async function getJson<T>(url: string): Promise<T | null> {
   const { signal, cancel } = withTimeout(REQUEST_TIMEOUT_MS)
   try {
     const res = await fetch(url, { signal })

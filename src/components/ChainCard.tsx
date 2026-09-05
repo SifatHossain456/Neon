@@ -1,6 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
-import { ExternalLink, Fuel, Timer, Zap } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowRight, ExternalLink, Fuel, Hourglass, Timer, Zap } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { ChainConfig } from '@/lib/chainConfigs'
 import type { ChainLive } from '@/hooks/useChainData'
@@ -219,6 +220,33 @@ export function ChainCard({ config, live, price, history, index }: ChainCardProp
             <Sparkline values={history} color={accent} live={live.online} />
           </div>
           <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-white/25">{config.note}</p>
+        </div>
+
+        {/* Details affordance: Arc links to its live page; others are honest about Phase 2. */}
+        <div className="flex items-center gap-2">
+          <span aria-hidden className="h-px flex-1 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+          {config.id === 'arc' ? (
+            <Link
+              href={`/chain/${config.id}`}
+              className="group inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-white/65 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white"
+              aria-label={`Open the ${config.name} detail page`}
+            >
+              Details
+              <ArrowRight
+                size={12}
+                className="text-white/35 transition-transform group-hover:translate-x-0.5 group-hover:text-white/80"
+              />
+            </Link>
+          ) : (
+            <span
+              title={`${config.name} detail page lands in Phase 2 — Arc ships first`}
+              aria-disabled="true"
+              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-white/[0.05] bg-white/[0.015] px-2.5 py-1 text-[11px] font-medium text-white/25"
+            >
+              <Hourglass size={11} className="text-white/20" />
+              Details soon
+            </span>
+          )}
         </div>
       </div>
     </motion.article>

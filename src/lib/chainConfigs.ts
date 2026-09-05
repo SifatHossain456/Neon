@@ -127,7 +127,7 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     showTps: false,
     showGas: true,
     hasPrice: false,
-    note: 'Chain 5042002 · gas is paid in USDC (6 decimals) on testnet.',
+    note: 'Chain 5042002 · gas is paid in native USDC (18 decimals, pegged to $1).',
   },
 ]
 
