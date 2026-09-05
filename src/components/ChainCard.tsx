@@ -68,6 +68,8 @@ export function ChainCard({ config, live, price, history, index }: ChainCardProp
   const isEvm = config.id === 'arc' || config.id === 'monad'
   const up = uptimePct(live.polls, live.successes)
   const showBlockTime = isEvm && live.blockTimeSec !== null
+  // Chains with a shipped detail page get a real "Details" link (Phase 2).
+  const hasDetailPage = config.id === 'arc' || config.id === 'monad' || config.id === 'solana'
 
   return (
     <motion.article
@@ -240,10 +242,10 @@ export function ChainCard({ config, live, price, history, index }: ChainCardProp
           <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-white/25">{config.note}</p>
         </div>
 
-        {/* Details affordance: Arc links to its live page; others are honest about Phase 2. */}
+        {/* Details affordance: live chains link to their detail page; others are honest about Phase 2. */}
         <div className="flex items-center gap-2">
           <span aria-hidden className="h-px flex-1 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-          {config.id === 'arc' ? (
+          {hasDetailPage ? (
             <Link
               href={`/chain/${config.id}`}
               className="group inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-white/65 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white"
@@ -257,7 +259,7 @@ export function ChainCard({ config, live, price, history, index }: ChainCardProp
             </Link>
           ) : (
             <span
-              title={`${config.name} detail page lands in Phase 2 — Arc ships first`}
+              title={`${config.name} detail page lands in Phase 2 — Arc, Monad and Solana ship first`}
               aria-disabled="true"
               className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-white/[0.05] bg-white/[0.015] px-2.5 py-1 text-[11px] font-medium text-white/25"
             >

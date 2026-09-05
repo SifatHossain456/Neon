@@ -1,12 +1,22 @@
+import type { ComponentType } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, ArrowUpRight, Construction } from 'lucide-react'
 import { CHAIN_CONFIGS } from '@/lib/chainConfigs'
 import { ArcDetail } from '@/components/ArcDetail'
+import { MonadDetail } from '@/components/detail/MonadDetail'
+import { SolanaDetail } from '@/components/detail/SolanaDetail'
+import type { ChainConfig } from '@/lib/chainConfigs'
 
 interface ChainPageProps {
   params: Promise<{ id: string }>
+}
+
+const DETAIL_COMPONENTS: Partial<Record<string, ComponentType<{ config: ChainConfig }>>> = {
+  arc: ArcDetail,
+  monad: MonadDetail,
+  solana: SolanaDetail,
 }
 
 export async function generateMetadata({ params }: ChainPageProps): Promise<Metadata> {
@@ -15,7 +25,7 @@ export async function generateMetadata({ params }: ChainPageProps): Promise<Meta
   if (!config) return {}
   return {
     title: config.name,
-    description: `Live ${config.name} (${config.tagline}) data — block height, gas, latency, network stats. Detail page on Neon, the open-source multi-chain dashboard.`,
+    description: `Live ${config.name} (${config.tagline}) data — ${config.blockLabel.toLowerCase()} height, latency, network stats and more. Detail page on Neon, the open-source multi-chain dashboard.`,
   }
 }
 
@@ -24,9 +34,11 @@ export default async function ChainPage({ params }: ChainPageProps) {
   const config = CHAIN_CONFIGS.find((c) => c.id === id)
   if (!config) notFound()
 
-  // Phase 1 ships a real-time page for Arc (chainId 5042002) first.
-  // Every other supported chain gets an honest "coming soon" page.
-  if (config.id === 'arc') return <ArcDetail config={config} />
+  const Detail = DETAIL_COMPONENTS[config.id]
+  if (Detail) return <Detail config={config} />
+
+  // Phase 2 ships Monad + Solana first; Sui, Aptos and future chains get an
+  // honest "coming soon" state until their detail pages land.
   return <ComingSoon config={config} />
 }
 
@@ -79,7 +91,8 @@ function ComingSoon({ config }: { config: (typeof CHAIN_CONFIGS)[number] }) {
           </p>
           <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-white/45">
             The real-time detail page for {config.name} arrives in Phase 2 of the Neon roadmap —
-            same treatment Arc got: live explorer stats, a block feed and honest health metrics.
+            same treatment Arc, Monad and Solana got: live network stats, a block feed and honest
+            health metrics.
           </p>
           <p className="mx-auto mt-2 max-w-md text-[11.5px] leading-relaxed text-white/25">
             In the meantime, {config.name} still streams live on the dashboard: latest{' '}
@@ -117,7 +130,21 @@ function ComingSoon({ config }: { config: (typeof CHAIN_CONFIGS)[number] }) {
               href="/chain/arc"
               className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-medium text-white/50 transition-colors hover:text-white/90"
             >
-              See Arc (Phase 1)
+              See Arc
+              <ArrowUpRight size={13} />
+            </Link>
+            <Link
+              href="/chain/monad"
+              className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-medium text-white/50 transition-colors hover:text-white/90"
+            >
+              See Monad
+              <ArrowUpRight size={13} />
+            </Link>
+            <Link
+              href="/chain/solana"
+              className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-medium text-white/50 transition-colors hover:text-white/90"
+            >
+              See Solana
               <ArrowUpRight size={13} />
             </Link>
           </div>
