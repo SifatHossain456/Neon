@@ -8,7 +8,11 @@ A real-time dashboard for **Monad, Sui, Aptos, Solana and Arc** — latest block
 - **Per-chain identity** — each chain gets its own gradient, accent color and honest metric labels (Block vs Slot vs Checkpoint).
 - **Unambiguous health** — every chain card carries a `LIVE` / `OFFLINE` / `SYNCING` badge derived from the last actual RPC response.
 - **Status summary bar** — “x/5 chains online · last updated Ns ago” with a **manual refresh** button (auto-poll runs every 12 seconds).
-- **Real latency sparklines** — tiny SVG trend of the last 24 measured samples per chain.
+- **Real latency sparklines** — tiny SVG trend of the last measured samples per chain, **persisted to `localStorage`** (up to 200/chain) so they survive reloads.
+- **Honest health metrics** — per-chain **uptime % since page load** (`ok polls / total polls`, with N shown) and real **block-time estimates** for EVM chains (Arc, Monad) measured from consecutive poll deltas (`est. from last N polls`).
+- **Chain detail pages** — `/chain/arc` (Phase 1) shows a live Blockscout stats grid, gas in gwei **and in $ per 21k-gas USDC transfer**, a live block feed with RPC fallback, chain params, faucet and an **EIP-3085 add-to-wallet** button. Other chains get an honest “coming soon” page until Phase 2.
+- **Installable PWA** — web manifest with the Neon icon and theme colors.
+- **Status API** — `GET /api/status` returns a machine-readable health snapshot of all five chains.
 - **Token prices** — SUI, APT, SOL with 24h change via the public **CoinGecko simple/price** endpoint.
 - **Glass dark UI** — animated stat transitions, hover micro-interactions, responsive grid that flows from 1 → 2 → 3 → 5 columns.
 - **Explorer deep links** — each card and the footer link out to the chain’s block explorer.
@@ -59,6 +63,30 @@ Arc is an EVM chain whose gas token is **USDC** (6 decimals). Neon verifies the 
 - Block height / slot / checkpoint + gas price: direct JSON-RPC `POST`s to each chain’s public RPC.
 - TPS: derived from real on-chain samples (checkpoint transaction counts, ledger growth, Solana performance samples).
 - Token prices: `https://api.coingecko.com/api/v3/simple/price` (SUI, APT, SOL) — 24h change included.
+- Arc network stats + blocks: [ArcScan](https://testnet.arcscan.app)'s free **Blockscout API** (`/api/v2/stats`, `/api/v2/blocks`), with an automatic RPC fallback for the block feed.
+
+## Status API
+
+`GET /api/status` — never cached, polls every chain once and returns a health snapshot:
+
+```bash
+curl https://<your-host>/api/status
+```
+
+```json
+{
+  "chains": [
+    { "id": "monad", "online": true, "blockNumber": 1543210, "latencyMs": 143 },
+    { "id": "sui", "online": true, "blockNumber": 987654, "latencyMs": 88 }
+  ],
+  "generatedAt": "2026-09-05T18:00:00.000Z",
+  "tookMs": 620
+}
+```
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) — Phase 1 is shipped; Phase 2 (other detail pages, compare view, shortcuts) is next.
 
 ## License
 
