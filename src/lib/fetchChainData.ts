@@ -45,9 +45,26 @@ export async function getJson<T>(url: string): Promise<T | null> {
   }
 }
 
+/**
+ * Tolerant integer parser: EVM RPCs return 0x-hex strings, Solana returns
+ * JSON numbers, and never assume the payload type over the wire — anything
+ * unparseable becomes NaN so callers can treat it as "no data".
+ */
 function hexToInt(hex: unknown): number {
-  if (typeof hex !== 'string') throw new Error('bad hex')
-  return parseInt(hex, 16)
+  if (typeof hex === 'number') return isFinite(hex) ? Math.trunc(hex) : NaN
+  if (typeof hex !== 'string') return NaN
+  const s = hex.trim()
+  if (s === '') return NaN
+  // EVM/legacy payloads use 0x-hex; a plain numeric string is almost always
+  // already decimal — parse it as such instead of misreading it as hex.
+  const n = /^0x/i.test(s) ? parseInt(s, 16) : parseInt(s, 10)
+  return isFinite(n) ? n : NaN
+}
+
+/** Decimal parser for chains that report plain integers (e.g. Sui checkpoints). */
+function decToInt(v: unknown): number | null {
+  const n = Number(v)
+  return isFinite(n) && Number.isInteger(n) ? n : null
 }
 
 export interface ChainPollResult {
@@ -95,7 +112,8 @@ export async function fetchSuiBlock(): Promise<ChainPollResult | null> {
   )
   if (checkpoint === null) return null
   const latency = Date.now() - start
-  const blockNumber = hexToInt(checkpoint)
+  const blockNumber = decToInt(checkpoint)
+  if (blockNumber === null) return null
 
   // Approximate TPS from the transaction count inside the latest checkpoint.
   let tps: number | null = null

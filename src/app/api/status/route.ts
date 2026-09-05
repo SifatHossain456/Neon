@@ -56,7 +56,8 @@ export async function GET() {
       generatedAt: new Date().toISOString(),
       tookMs: Date.now() - startedAt,
     })
-  } catch {
+  } catch (err) {
+    console.error('[api/status] failed to assemble snapshot:', err)
     return NextResponse.json(
       {
         chains: [],
