@@ -1,7 +1,10 @@
 'use client'
+import { TrendingDown, TrendingUp } from 'lucide-react'
+import { fmtChange, fmtPrice } from '@/lib/format'
 
-interface TickerItem {
+export interface TickerItem {
   symbol: string
+  color: string
   price: number
   change24h: number
 }
@@ -12,22 +15,38 @@ export function PriceTicker({ items }: { items: TickerItem[] }) {
   const doubled = [...items, ...items]
 
   return (
-    <div className="border-b border-white/5 overflow-hidden bg-white/[0.02] py-2">
-      <div
-        className="flex whitespace-nowrap"
-        style={{ animation: 'ticker-scroll 20s linear infinite' }}
-      >
-        {doubled.map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-2 text-sm mr-8" aria-hidden={i >= items.length}>
-            <span className="text-white/50 font-mono">{item.symbol}</span>
-            <span className="text-white font-mono font-medium">
-              ${item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+    <div className="relative overflow-hidden border-b border-white/[0.04] bg-white/[0.015] py-2 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
+      <div className="ticker-track group flex w-max whitespace-nowrap">
+        {doubled.map((item, i) => {
+          const up = item.change24h >= 0
+          const Trend = up ? TrendingUp : TrendingDown
+          return (
+            <span
+              key={`${item.symbol}-${i}`}
+              aria-hidden={i >= items.length}
+              className="inline-flex items-center gap-2 px-5 text-xs"
+            >
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="font-mono font-semibold tracking-wide text-white/70">
+                {item.symbol}
+              </span>
+              <span className="font-mono font-medium text-white tabular-nums">
+                {fmtPrice(item.price)}
+              </span>
+              <span
+                className={`inline-flex items-center gap-0.5 font-mono tabular-nums ${
+                  up ? 'text-emerald-400' : 'text-red-400'
+                }`}
+              >
+                <Trend size={11} strokeWidth={2.5} />
+                {fmtChange(item.change24h)}
+              </span>
             </span>
-            <span className={`text-xs font-mono ${item.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {item.change24h >= 0 ? '+' : ''}{item.change24h.toFixed(2)}%
-            </span>
-          </span>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

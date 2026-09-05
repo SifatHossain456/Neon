@@ -1,144 +1,226 @@
 'use client'
 import { motion } from 'framer-motion'
-import { ExternalLink, Zap, Clock, Cpu } from 'lucide-react'
-import { LiveDot } from './LiveDot'
+import { ExternalLink, Fuel, Timer, Zap } from 'lucide-react'
+import type { ReactNode } from 'react'
+import type { ChainConfig } from '@/lib/chainConfigs'
+import type { ChainLive } from '@/hooks/useChainData'
+import type { PriceInfo } from '@/lib/fetchChainData'
+import { fmtBlock, fmtChange, fmtGwei, fmtInt, fmtLatency, fmtPrice } from '@/lib/format'
+import { StatusBadge } from './StatusBadge'
+import { Sparkline } from './Sparkline'
 
 interface ChainCardProps {
-  name: string
-  color: string
-  nativeToken: string
-  description: string
-  isTestnet: boolean
-  explorer: string
-  blockNumber: number | null
-  tps: number | null
-  latency: number | null
-  price: number | null
-  change24h: number | null
-  isLoading: boolean
+  config: ChainConfig
+  live: ChainLive
+  price: PriceInfo | null
+  history: number[]
   index: number
 }
 
-function StatRow({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: string | null; unit?: string }) {
+function MetricTile({
+  icon,
+  label,
+  children,
+  value,
+}: {
+  icon: ReactNode
+  label: string
+  children?: ReactNode
+  value?: ReactNode
+}) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
-      <div className="flex items-center gap-2 text-white/40 text-xs">
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-colors duration-300 hover:border-white/[0.12] hover:bg-white/[0.05]">
+      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-white/35">
         {icon}
         <span>{label}</span>
       </div>
-      <span className="text-white/80 text-xs font-mono">
-        {value != null ? (
-          <>
-            {value}
-            {unit && <span className="text-white/30 ml-1">{unit}</span>}
-          </>
-        ) : (
-          <span className="text-white/20">—</span>
-        )}
-      </span>
+      <div className="mt-1.5 font-mono text-sm font-medium text-white/90 tabular-nums">
+        {value ?? children}
+      </div>
     </div>
   )
 }
 
-export function ChainCard({
-  name, color, nativeToken, description, isTestnet, explorer,
-  blockNumber, tps, latency, price, change24h, isLoading, index,
-}: ChainCardProps) {
+function AnimatedValue({ value, className }: { value: string; className?: string }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
+    <motion.span
+      key={value}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08, duration: 0.4, ease: 'easeOut' }}
-      whileHover={{ y: -2 }}
-      className="relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 overflow-hidden group"
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className={className}
     >
-      {/* Subtle top glow on hover */}
+      {value}
+    </motion.span>
+  )
+}
+
+export function ChainCard({ config, live, price, history, index }: ChainCardProps) {
+  const { color, accent, blockLabel } = config
+  const badge = live.loading ? 'connecting' : live.online ? 'online' : 'offline'
+  const hasBlock = live.blockNumber !== null
+  const networkLabel = config.network === 'testnet' ? 'Testnet' : 'Mainnet'
+  const networkChip =
+    config.network === 'testnet'
+      ? 'border-amber-400/25 bg-amber-400/[0.07] text-amber-300/80'
+      : 'border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-300/70'
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.04 * index, duration: 0.4, ease: 'easeOut' }}
+      whileHover={{ y: -3 }}
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] shadow-[0_2px_24px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-[border-color,box-shadow] duration-300 hover:shadow-[0_18px_50px_-20px_rgba(0,0,0,0.85)]"
+    >
+      {/* per-chain corner glow */}
       <div
-        className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        style={{ background: `linear-gradient(90deg, transparent, ${color}80, transparent)` }}
+        aria-hidden
+        className="pointer-events-none absolute -right-14 -top-14 h-40 w-40 rounded-full opacity-[0.13] blur-3xl transition-opacity duration-500 group-hover:opacity-30"
+        style={{ background: `radial-gradient(circle, ${color}, transparent 70%)` }}
+      />
+      {/* top accent hairline */}
+      <div
+        aria-hidden
+        className="h-px w-full opacity-70 transition-opacity duration-500 group-hover:opacity-100"
+        style={{ background: `linear-gradient(90deg, transparent, ${color}, ${accent}, transparent)` }}
       />
 
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
-            style={{ backgroundColor: `${color}20`, color }}
-          >
-            {name[0]}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-white font-semibold text-sm">{name}</h3>
-              <LiveDot color={color} />
+      <div className="relative flex flex-1 flex-col gap-3.5 p-4 sm:p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[13px] font-black shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, ${color}, ${accent})`,
+                boxShadow: `0 4px 18px -6px ${color}99`,
+                color: '#fff',
+              }}
+            >
+              {config.initials}
             </div>
-            <p className="text-white/30 text-xs">{description}</p>
+            <div className="min-w-0 leading-tight">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h3 className="text-[15px] font-bold tracking-tight text-white">{config.name}</h3>
+                <StatusBadge state={badge} />
+              </div>
+              <p className="mt-0.5 truncate text-[11px] text-white/35">{config.tagline}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {isTestnet && (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-yellow-500/30 text-yellow-500/70">
-              testnet
-            </span>
-          )}
-          {explorer && (
-            <a href={explorer} target="_blank" rel="noopener noreferrer" aria-label={`${name} explorer`} className="text-white/20 hover:text-white/60 transition-colors">
+
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <a
+              href={config.explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Open ${config.explorerLabel}`}
+              aria-label={`Open ${config.name} in ${config.explorerLabel}`}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-white/40 transition-colors hover:border-white/25 hover:text-white"
+            >
               <ExternalLink size={12} />
             </a>
-          )}
-        </div>
-      </div>
-
-      {/* Price */}
-      {price !== null ? (
-        <div className="mb-4">
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-white">
-              ${price < 0.01 ? price.toFixed(6) : price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+            <span
+              className={`rounded-full border px-1.5 py-px font-mono text-[9px] font-semibold uppercase tracking-[0.12em] ${networkChip}`}
+            >
+              {networkLabel}
             </span>
-            {change24h !== null && (
-              <span className={`text-xs font-mono ${change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {change24h >= 0 ? '+' : ''}{change24h.toFixed(2)}%
-              </span>
+          </div>
+        </div>
+
+        {/* Block hero */}
+        <div
+          className="relative overflow-hidden rounded-xl border border-white/[0.06] px-4 py-3"
+          style={{ background: `linear-gradient(135deg, ${color}14, transparent 65%)` }}
+        >
+          <div className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-white/40">
+            <span>Latest {blockLabel.toLowerCase()}</span>
+            <span className="font-mono normal-case tracking-normal text-white/30">
+              {config.chainId ? `chain ${config.chainId}` : config.network}
+            </span>
+          </div>
+          <div className="mt-1 truncate font-mono text-[22px] font-semibold leading-none tracking-tight">
+            {hasBlock ? (
+              <AnimatedValue
+                value={fmtBlock(live.blockNumber!)}
+                className="tabular-nums text-white"
+              />
+            ) : (
+              <span className="text-white/20">——</span>
             )}
           </div>
-          <p className="text-white/30 text-xs mt-0.5">{nativeToken}</p>
         </div>
-      ) : (
-        <div className="mb-4">
-          <div className="text-white/20 text-xs font-mono">Price TBA</div>
-          <p className="text-white/30 text-xs mt-0.5">{nativeToken}</p>
-        </div>
-      )}
 
-      {/* Stats */}
-      <div className="space-y-0">
-        <StatRow
-          icon={<Cpu size={10} />}
-          label="Block"
-          value={blockNumber ? `#${blockNumber.toLocaleString()}` : null}
-        />
-        {tps !== null && (
-          <StatRow
-            icon={<Zap size={10} />}
-            label="TPS"
-            value={tps ? tps.toLocaleString() : '0'}
+        {/* Metric tiles */}
+        <div className="grid grid-cols-2 gap-2">
+          {config.hasPrice &&
+            (price ? (
+              <div className="col-span-2 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-colors duration-300 hover:border-white/[0.12] hover:bg-white/[0.05]">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-white/35">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                  <span>Price · 24h</span>
+                  <span className="ml-auto font-mono normal-case tracking-normal text-white/25">
+                    {config.nativeToken}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-baseline gap-2.5">
+                  <AnimatedValue
+                    value={fmtPrice(price.usd)}
+                    className="font-mono text-xl font-semibold tabular-nums text-white"
+                  />
+                  <span
+                    className={`font-mono text-xs font-medium tabular-nums ${
+                      price.usd_24h_change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                    title="24h change · CoinGecko"
+                  >
+                    {fmtChange(price.usd_24h_change)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="col-span-2 rounded-xl border border-dashed border-white/[0.07] px-3 py-2.5 text-[11px] text-white/25">
+                No market feed — price comes from the public CoinGecko API only.
+              </div>
+            ))}
+
+          {config.showTps && (
+            <MetricTile
+              icon={<Zap size={11} />}
+              label="TPS"
+              value={live.tps !== null ? fmtInt(live.tps) : '—'}
+            />
+          )}
+
+          {config.showGas && (
+            <MetricTile
+              icon={<Fuel size={11} />}
+              label={`Gas · ${config.nativeToken}`}
+              value={live.gasPriceGwei !== null ? fmtGwei(live.gasPriceGwei) : '—'}
+            />
+          )}
+
+          <MetricTile
+            icon={<Timer size={11} />}
+            label="Latency"
+            value={live.latency !== null ? fmtLatency(live.latency) : '—'}
           />
-        )}
-        <StatRow
-          icon={<Clock size={10} />}
-          label="Latency"
-          value={latency ? `${latency}` : null}
-          unit="ms"
-        />
-      </div>
-
-      {/* Loading shimmer overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 rounded-2xl bg-black/20 backdrop-blur-sm flex items-center justify-center">
-          <div className="w-4 h-4 border border-white/20 border-t-white/60 rounded-full animate-spin" />
         </div>
-      )}
-    </motion.div>
+
+        {/* Latency sparkline + provenance note */}
+        <div className="mt-auto border-t border-white/[0.05] pt-3">
+          <div className="flex items-center justify-between text-[9.5px] uppercase tracking-[0.12em] text-white/25">
+            <span>RPC latency · last {Math.min(history.length, 24)} polls</span>
+            <span className="font-mono lowercase tracking-normal">
+              {live.online ? 'real samples' : 'no signal'}
+            </span>
+          </div>
+          <div className="mt-1.5">
+            <Sparkline values={history} color={accent} live={live.online} />
+          </div>
+          <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-white/25">{config.note}</p>
+        </div>
+      </div>
+    </motion.article>
   )
 }

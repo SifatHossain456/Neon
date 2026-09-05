@@ -1,12 +1,14 @@
 'use client'
-import { useChainData } from '@/hooks/useChainData'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { ArrowUpRight, Radio } from 'lucide-react'
+import { useChainData, type ChainLive } from '@/hooks/useChainData'
+import { CHAIN_CONFIGS, type ChainId } from '@/lib/chainConfigs'
+import type { PriceInfo } from '@/lib/fetchChainData'
 import { Header } from '@/components/Header'
 import { PriceTicker } from '@/components/PriceTicker'
+import { StatusBar } from '@/components/StatusBar'
 import { ChainCard } from '@/components/ChainCard'
-import { CHAIN_CONFIGS } from '@/lib/chainConfigs'
-import { motion } from 'framer-motion'
-import { RefreshCw } from 'lucide-react'
-import { useState } from 'react'
 
 export default function Home() {
   const { data, refresh } = useChainData()
@@ -14,130 +16,161 @@ export default function Home() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await refresh()
-    setRefreshing(false)
+    try {
+      await refresh()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
-  const tickerItems = [
-    { symbol: 'SOL', price: data.prices['solana']?.usd ?? 0, change24h: data.prices['solana']?.usd_24h_change ?? 0 },
-    { symbol: 'SUI', price: data.prices['sui']?.usd ?? 0, change24h: data.prices['sui']?.usd_24h_change ?? 0 },
-    { symbol: 'APT', price: data.prices['aptos']?.usd ?? 0, change24h: data.prices['aptos']?.usd_24h_change ?? 0 },
-  ].filter(t => t.price > 0)
+  const tickerItems = CHAIN_CONFIGS.filter((c) => c.hasPrice)
+    .map((c) => {
+      const p = data.prices[c.coinGeckoId ?? '']
+      if (!p || p.usd <= 0) return null
+      return { symbol: c.nativeToken, color: c.color, price: p.usd, change24h: p.usd_24h_change }
+    })
+    .filter((t): t is { symbol: string; color: string; price: number; change24h: number } => t !== null)
 
-  const chainDataMap = {
-    monad: {
-      blockNumber: data.monad.blockNumber,
-      tps: null,
-      latency: data.monad.latency,
-      isLoading: data.monad.loading,
-      price: null,
-      change24h: null,
-    },
-    sui: {
-      blockNumber: data.sui.blockNumber,
-      tps: data.sui.tps,
-      latency: data.sui.latency,
-      isLoading: data.sui.loading,
-      price: data.prices['sui']?.usd ?? null,
-      change24h: data.prices['sui']?.usd_24h_change ?? null,
-    },
-    aptos: {
-      blockNumber: data.aptos.blockNumber,
-      tps: data.aptos.tps,
-      latency: data.aptos.latency,
-      isLoading: data.aptos.loading,
-      price: data.prices['aptos']?.usd ?? null,
-      change24h: data.prices['aptos']?.usd_24h_change ?? null,
-    },
-    solana: {
-      blockNumber: data.solana.blockNumber,
-      tps: data.solana.tps,
-      latency: data.solana.latency,
-      isLoading: data.solana.loading,
-      price: data.prices['solana']?.usd ?? null,
-      change24h: data.prices['solana']?.usd_24h_change ?? null,
-    },
-    arc: {
-      blockNumber: null,
-      tps: null,
-      latency: null,
-      isLoading: false,
-      price: null,
-      change24h: null,
-    },
-  }
-
-  const allLoading = Object.values(chainDataMap).some(c => c.isLoading)
+  const onlineCount = Object.values(data.chains).filter((c: ChainLive) => c.online).length
+  const firstSyncDone = data.lastUpdated !== null
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#08080e' }}>
+    <div className="relative flex min-h-screen flex-col overflow-x-clip">
+      {/* Ambient background */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(1100px 700px at 12% -10%, rgba(139,124,248,0.12), transparent 60%), radial-gradient(900px 600px at 88% -5%, rgba(77,162,255,0.09), transparent 55%), radial-gradient(800px 600px at 50% 115%, rgba(153,69,255,0.08), transparent 60%)',
+          }}
+        />
+        <div className="absolute inset-0 bg-faint-grid" />
+      </div>
+
       <Header />
       {tickerItems.length > 0 && <PriceTicker items={tickerItems} />}
 
-      <main className="flex-1 px-6 py-8 max-w-7xl mx-auto w-full">
-        {/* Title row */}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-5 py-8 sm:px-6 sm:py-10">
+        {/* Title block */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-8"
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          className="mb-6"
         >
-          <div>
-            <h1 className="text-white font-semibold text-xl">Ecosystem</h1>
-            <p className="text-white/30 text-sm mt-0.5">Live on-chain data &middot; refreshes every 12s</p>
-          </div>
-          <button
-            onClick={handleRefresh}
-            disabled={allLoading || refreshing}
-            className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors disabled:opacity-30"
-          >
-            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+          <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+            <Radio size={11} className="text-emerald-400" />
+            Real-time feed · no API keys
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-[34px] sm:leading-[1.15]">
+            The pulse of{' '}
+            <span className="bg-gradient-to-r from-[#b9a8ff] via-[#63e2ff] to-[#14f195] bg-clip-text text-transparent">
+              five chains
+            </span>
+            , live.
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-white/40">
+            Latest block heights, TPS, gas prices and token prices — polled straight from public
+            RPC endpoints and CoinGecko. Testnets can be flaky, so when an endpoint doesn&apos;t
+            answer, Neon says offline. No guesses, ever.
+          </p>
         </motion.div>
 
-        {/* Chain cards grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {CHAIN_CONFIGS.map((chain, i) => {
-            const live = chainDataMap[chain.id as keyof typeof chainDataMap]
+        <StatusBar
+          onlineCount={firstSyncDone ? onlineCount : 0}
+          total={CHAIN_CONFIGS.length}
+          lastUpdated={data.lastUpdated}
+          busy={refreshing}
+          onRefresh={handleRefresh}
+        />
+
+        {/* Chain grid */}
+        <div className="mt-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {CHAIN_CONFIGS.map((config, i) => {
+            const live = data.chains[config.id as ChainId]
+            const price: PriceInfo | null =
+              config.coinGeckoId && data.prices[config.coinGeckoId]
+                ? data.prices[config.coinGeckoId]
+                : null
             return (
               <ChainCard
-                key={chain.id}
-                name={chain.name}
-                color={chain.color}
-                nativeToken={chain.nativeToken}
-                description={chain.description}
-                isTestnet={chain.isTestnet}
-                explorer={chain.explorer}
-                blockNumber={live.blockNumber}
-                tps={live.tps}
-                latency={live.latency}
-                price={live.price}
-                change24h={live.change24h}
-                isLoading={live.isLoading}
+                key={config.id}
+                config={config}
+                live={live}
+                price={price}
+                history={data.history[config.id as ChainId]}
                 index={i}
               />
             )
           })}
         </div>
 
-        {/* Footer */}
-        <motion.div
+        <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-12 pt-6 border-t border-white/[0.04] flex items-center justify-between text-white/20 text-xs"
+          transition={{ delay: 0.7 }}
+          className="mt-5 text-center text-[11px] leading-relaxed text-white/25"
         >
-          <span>Neon &mdash; Open source multi-chain dashboard</span>
-          <a
-            href="https://github.com/SifatHossain456/Neon"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-white/40 transition-colors"
-          >
-            GitHub
-          </a>
-        </motion.div>
+          All figures come from live RPC responses (EVM eth_blockNumber / eth_gasPrice, Sui
+          checkpoints, Aptos ledger, Solana slots &amp; performance samples) and CoinGecko&apos;s
+          public price API. Data refreshes every 12 seconds.
+        </motion.p>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-white/[0.05] bg-white/[0.015]">
+        <div className="mx-auto w-full max-w-7xl px-5 py-6 sm:px-6">
+          <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#8b7cf8] via-[#9945ff] to-[#4da2ff]">
+                <span className="text-xs font-black text-white">N</span>
+              </div>
+              <div className="leading-tight">
+                <p className="text-sm font-semibold text-white/85">Neon</p>
+                <p className="text-[11px] text-white/30">
+                  Open-source multi-chain dashboard · MIT
+                </p>
+              </div>
+            </div>
+
+            <nav className="flex flex-wrap items-center gap-1.5" aria-label="Block explorers">
+              {CHAIN_CONFIGS.map((c) => (
+                <a
+                  key={c.id}
+                  href={c.explorerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2 py-1 text-[11px] text-white/45 transition-colors hover:border-white/20 hover:text-white"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                  {c.explorerLabel}
+                  <ArrowUpRight
+                    size={11}
+                    className="text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  />
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          <div className="mt-5 flex flex-col items-start justify-between gap-2 border-t border-white/[0.04] pt-4 text-[11px] text-white/25 sm:flex-row sm:items-center">
+            <p>
+              Live data from public JSON-RPC endpoints + CoinGecko — no API keys, no wallet, no
+              middlemen.
+            </p>
+            <a
+              href="https://github.com/SifatHossain456/Neon"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-white/35 transition-colors hover:text-white/70"
+            >
+              github.com/SifatHossain456/Neon
+              <ArrowUpRight size={11} />
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
