@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import type { ChainConfig } from '@/lib/chainConfigs'
 import type { ChainLive } from '@/hooks/useChainData'
 import type { PriceInfo } from '@/lib/fetchChainData'
-import { fmtBlock, fmtChange, fmtGwei, fmtInt, fmtLatency, fmtPrice } from '@/lib/format'
+import { fmtBlock, fmtBlockTimeSec, fmtChange, fmtGwei, fmtInt, fmtLatency, fmtPrice, uptimePct } from '@/lib/format'
 import { StatusBadge } from './StatusBadge'
 import { Sparkline } from './Sparkline'
 
@@ -65,6 +65,9 @@ export function ChainCard({ config, live, price, history, index }: ChainCardProp
     config.network === 'testnet'
       ? 'border-amber-400/25 bg-amber-400/[0.07] text-amber-300/80'
       : 'border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-300/70'
+  const isEvm = config.id === 'arc' || config.id === 'monad'
+  const up = uptimePct(live.polls, live.successes)
+  const showBlockTime = isEvm && live.blockTimeSec !== null
 
   return (
     <motion.article
@@ -150,6 +153,18 @@ export function ChainCard({ config, live, price, history, index }: ChainCardProp
               <span className="text-white/20">——</span>
             )}
           </div>
+          {showBlockTime && (
+            <div className="mt-1.5 inline-flex items-center gap-1 text-[9.5px] text-white/35">
+              <Timer size={9} className="text-white/25" />
+              ~{fmtBlockTimeSec(live.blockTimeSec)} / block
+              <span
+                className="text-white/20"
+                title="Measured from consecutive successful RPC polls (Δt ÷ Δblock number)"
+              >
+                · est. from last {live.blockTimeN} polls
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Metric tiles */}
@@ -211,9 +226,12 @@ export function ChainCard({ config, live, price, history, index }: ChainCardProp
         {/* Latency sparkline + provenance note */}
         <div className="mt-auto border-t border-white/[0.05] pt-3">
           <div className="flex items-center justify-between text-[9.5px] uppercase tracking-[0.12em] text-white/25">
-            <span>RPC latency · last {Math.min(history.length, 24)} polls</span>
-            <span className="font-mono lowercase tracking-normal">
-              {live.online ? 'real samples' : 'no signal'}
+            <span>RPC latency · last {history.length} samples</span>
+            <span
+              className={`font-mono lowercase tracking-normal ${up === null ? 'text-white/25' : up === 100 ? 'text-emerald-300/70' : up >= 50 ? 'text-amber-300/70' : 'text-red-300/70'}`}
+              title={`${live.successes}/${live.polls} polls returned data since page load`}
+            >
+              {up === null ? (live.loading ? 'connecting…' : 'no signal') : `${up}% up · ${live.polls} polls`}
             </span>
           </div>
           <div className="mt-1.5">
